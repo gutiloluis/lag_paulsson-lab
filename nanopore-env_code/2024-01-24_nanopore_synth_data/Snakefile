@@ -1,0 +1,63 @@
+SCRATCH_PATH = "/n/scratch/groups/hms/sysbio/paulsson/lag36/2024-01-24_nanopore_synth-data/"
+DEPTH_THRESHOLD = 0
+CHUNK_SIZE = 50
+N_SUBSAMPLES = [None]
+
+readfiles = glob_wildcards(SCRATCH_PATH+"reads/{readfile}.fastq").readfile
+tsv_list = expand(SCRATCH_PATH+"graph_output/{readfile}.tsv", readfile=readfiles)
+fastq_list = expand(SCRATCH_PATH+"reads/{readfile}.fastq", readfile=readfiles)
+
+
+rule all:
+    input:
+        readgroups = directory(SCRATCH_PATH+"readgroups"),
+        grouprefs = directory(SCRATCH_PATH+"grouprefs")
+
+rule graphalign:
+    input:
+        gfa=SCRATCH_PATH+"ref_lLAG2.gfa",
+        fastq=SCRATCH_PATH+"reads/{readfile}.fastq"
+    output:
+        graphout=SCRATCH_PATH+"graph_output/{readfile}.gaf"
+    resources: partition="short", time_min=10, mem_mb=500, cpus=1, optflags=""
+    shell:
+        "GraphAligner -g {input.gfa} -f {input.fastq} -a {output.graphout} -x dbg -b 20 -C 1000"
+
+rule get_barcodes:
+    input:
+        SCRATCH_PATH+"graph_output/{readfile}.gaf"
+    output:
+        SCRATCH_PATH+"graph_output/{readfile}.tsv"
+    resources: partition="short", time_min=10, mem_mb=1000, cpus=1, optflags=""
+    script:
+        "scripts/get_barcodes.py"
+
+# TODO Possible memory issue here if too many files are opened at once.
+rule group_barcodes:
+    input:
+        tsv = tsv_list
+    output:
+        barcode_hist = SCRATCH_PATH+"graph_output/barcode_counts.png",
+        #barcode_counts_dict = SCRATCH_PATH+"graph_output/barcode_counts_dict.pkl",
+        inv_barcode_codebook = SCRATCH_PATH+"graph_output/inv_codebook.tsv"
+    params:
+        threshold=DEPTH_THRESHOLD
+    resources: partition="short", time_min=30, mem_mb=16000, cpus=1, optflags=""
+    script:
+        "scripts/set_barcode_threshold.py"
+
+checkpoint group_read_refs_per_barcode:
+    input:
+        inv_barcode_codebook = SCRATCH_PATH+"graph_output/inv_codebook.tsv",
+        tsv=tsv_list,
+        fastq=fastq_list,
+        gfa=SCRATCH_PATH+"ref_lLAG2.gfa"
+    output:
+        readgroups = directory(SCRATCH_PATH+"readgroups"),
+        grouprefs = directory(SCRATCH_PATH+"grouprefs")
+    params:
+        chunksize=CHUNK_SIZE,
+        subsample_list=N_SUBSAMPLES
+    resources: partition="short", time_min=120, mem_mb=32000, cpus=2, optflags=""
+    script:
+        "scripts/group_barcodes.py"
