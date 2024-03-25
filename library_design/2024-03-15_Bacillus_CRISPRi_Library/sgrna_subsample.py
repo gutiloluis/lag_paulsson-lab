@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 
+from Bio.Seq import Seq
+
 # # bin dict must be in ascending order. Upper bound should be a number, not an interval
 # bin_dict = {
 #     0:[0.0, 0.2],
@@ -114,3 +116,43 @@ def generate_sample_single_gene(df_,
         df_sample = pd.concat([df_sample, df_remaining.loc[df_remaining['chosen']]]).drop(columns=['chosen'])
         
     return df_sample
+
+def check_restriction_site(in_seq: str,
+                           rest_seq: str = "GGTCTC") -> bool:
+    '''
+    Check if a sequence (or its reverse complement) contains a restriction site
+    Parameters:
+        in_seq: str - input sequence
+        rest_seq: str - restriction site sequence (default: BsaI site)
+    '''
+    test_str = Seq(in_seq.upper())
+    rc_test_str = test_str.reverse_complement()
+    if (rest_seq in test_str) or (rest_seq in rc_test_str):
+        return True
+    else:
+        return False
+    
+def check_all_sites(in_seq, rest_seqs=["GAAGAC", "GGTCTC", "CGATCG"]):
+    '''
+    Check if a sequence contains any of the restriction sites
+    Parameters:
+        in_seq: str - input sequence
+        rest_seqs: list - list of restriction sites (default: BbsI, BsaI, PvuI)
+    
+    '''
+    out_test = False
+    for rest_seq in rest_seqs:
+        rest_site = check_restriction_site(in_seq, rest_seq=rest_seq)
+        out_test = out_test or rest_site
+    return out_test
+
+def add_adapter_seqs(spacer: str) -> str:
+    '''
+    Add adapter sequences to the spacer for cloning
+    Parameters:
+        spacer: str - spacer sequence
+    '''
+    adapter_5p = 'CGTACGACGGAAGACATTCTCCTGTAATGTAAAAAATGGGCTCGTGTTGTACAATAAATGT'
+    adapter_3p = 'GTTTTCGTCTTCTTAAGGTGCC'
+    output_seq = adapter_5p + spacer + adapter_3p
+    return output_seq
