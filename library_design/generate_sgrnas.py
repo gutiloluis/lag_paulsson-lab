@@ -88,7 +88,8 @@ def construct_perfect_sgrnas(args):
         lower_seq.append(revcomp(str(rec.seq)))
         if rec.features:
             for feature in rec.features:
-                if feature.type == "CDS":
+                if 'locus_tag' in feature.qualifiers:
+                # if feature.type == "CDS":
                     gene_tag = feature.qualifiers.get("locus_tag", ["NA"])[0]
                     gene_name = feature.qualifiers.get("gene", ["NA"])[0]
                     loc = feature.location
@@ -119,7 +120,8 @@ def construct_perfect_sgrnas(args):
     for rec in SeqIO.parse(args.genbank, "gb"):
         if rec.features:
             for feature in rec.features:
-                if feature.type == "CDS":
+                # if feature.type == "CDS":
+                if 'locus_tag' in feature.qualifiers:
                     gene_tag = feature.qualifiers.get("locus_tag", ["NA"])[0]
                     if gene_tag in args.locus_tag or "all" in args.locus_tag:
                         if "all" in args.locus_tag:

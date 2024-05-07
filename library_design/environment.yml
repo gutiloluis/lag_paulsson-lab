@@ -1,0 +1,15 @@
+name: library_design
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - numpy
+  - ipykernel
+  - pandas
+  - matplotlib
+  - biopython
+  - openpyxl
+prefix: /home/gutil/miniconda3/envs/library_design
+
+# Includes bioformat, which was installed using pip
