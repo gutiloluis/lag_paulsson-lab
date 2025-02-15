@@ -1,0 +1,30 @@
+name: minitrenchripper
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - jupyter
+  - numpy
+  - pandas
+  - plotly
+  - scipy
+  - dask
+  - h5py
+  - ca-certificates
+  - certifi
+  - openssl
+  - pytables
+  - scikit-image
+  - parse
+  - dask-jobqueue
+  - matplotlib
+  - holoviews
+  - xarray
+  - datashader=0.17
+  - aiohttp
+  - hvplot
+  - zarr=2.18
+  - h5netcdf
+  - jupyter_bokeh
+prefix: /home/lag36/miniconda3/envs/minitrenchripper
