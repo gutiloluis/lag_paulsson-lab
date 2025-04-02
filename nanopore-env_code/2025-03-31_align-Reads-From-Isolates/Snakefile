@@ -1,0 +1,37 @@
+HEADPATH = ''
+GFA_REF_FILEPATH = HEADPATH + 'ref_lLAG8.gfa'
+FASTA_SINGLES_DIR = HEADPATH + 'read_singles/'
+# OUT_READS_FILEPATH = HEADPATH + 'reads/isolates_lLAG08-10.fasta'
+# Get the list of fasta files using expand
+
+file_wildcards = glob_wildcards(HEADPATH + 'reads/{readfile}.fasta').readfile
+expected_outputs = expand(HEADPATH + 'graph_output/{readfile}.pkl', readfile=file_wildcards)
+
+rule all:
+    input:
+        expected_outputs
+
+# rule concatenate_reads:
+#     input:
+#         FASTA_SINGLES_DIR
+#     output:
+#         OUT_READS_FILEPATH
+#     shell:
+#         "cat {input}*.fasta > {output}.fasta"
+
+rule graph_align:
+    input:
+        gfa = GFA_REF_FILEPATH,
+        query = HEADPATH + 'reads/{readfile}.fasta'
+    output:
+        HEADPATH + 'graph_output/{readfile}.gaf'
+    shell:
+        "GraphAligner -g {input.gfa} -f {input.query} -a {output} -x dbg -b 20 -C 1000"
+
+rule get_barcodes:
+    input:
+        HEADPATH + 'graph_output/{readfile}.gaf'
+    output:
+        HEADPATH + 'graph_output/{readfile}.pkl'
+    script:
+        'get_barcodes_from_gfa.py'
