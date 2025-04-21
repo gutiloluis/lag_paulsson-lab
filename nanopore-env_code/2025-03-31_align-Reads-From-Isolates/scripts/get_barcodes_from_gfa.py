@@ -27,8 +27,11 @@ gaf_columns = [
     "optional5",              # Optional fields (e.g., tags like NM:i, AS:f, etc.)
 ]
 
+filename_gaf = snakemake.input[0]
+filename_gaf_pickle = snakemake.output[0]
+
 df =(\
-    pd.read_csv(snakemake.input[0],
+    pd.read_csv(filename_gaf,
                 sep='\t',
                 names = gaf_columns,
                 header = None,
@@ -39,9 +42,8 @@ df = (df
       .drop_duplicates(subset = 'query_name', keep = False) # This is to discard "chimeric" reads. Maybe they can be handled?
       .astype({'strand': 'category'})#, 'Start': 'int32', 'End': 'int32'}) # Set dtypes
       .loc[lambda df_: (df_['path'].str.contains('SPACER2')) & (df_['path'].str.contains('Variant'))] # Keep only complete reads.
-      .assign(#col_15 = df['col_15'].astype(str).str.split(':').str[-1].astype('float32'), # Format col 15
+      .assign(
               query_name = lambda df_: df_['query_name'].str.replace(' ', '_'),
-              # Query_name = df['query_name'].astype(str).str.replace(' ', '_'),
               strand = (lambda df_: df_['strand']
                         .cat.set_categories(['+', '-'])
                         .mask(df_['path'].str.contains('<'), '-')
@@ -49,6 +51,7 @@ df = (df
              )
      )
 
+# TODO: Figure out how to chain these two parts
 df.loc[df['strand'] == '+', 'barcode'] = (df
                                           .loc[df['strand'] == '+','path']
                                           .str.split('>')
@@ -61,4 +64,4 @@ df.loc[df['strand'] == '-', 'barcode'] = (df.
                                           .apply(get_barcode)
                                          )# Get barcode list
 
-df.to_pickle(snakemake.output[0]) # Save to pickle
+df.to_pickle(filename_gaf_pickle) # Save to pickle

@@ -1,23 +1,19 @@
-HEADPATH = ''
+## Align reads from isolates
+
+HEADPATH = '/home/lag36/scratch/lag36/2025-03-31_align-Reads-From-Isolates/'
 GFA_REF_FILEPATH = HEADPATH + 'ref_lLAG8.gfa'
-FASTA_SINGLES_DIR = HEADPATH + 'read_singles/'
-# OUT_READS_FILEPATH = HEADPATH + 'reads/isolates_lLAG08-10.fasta'
-# Get the list of fasta files using expand
+FILENAME_COMBINED_ERROR_REPORTS = HEADPATH + 'combined_error_report.txt'
 
-file_wildcards = glob_wildcards(HEADPATH + 'reads/{readfile}.fasta').readfile
-expected_outputs = expand(HEADPATH + 'graph_output/{readfile}.pkl', readfile=file_wildcards)
 
+file_wildcards_grnas = glob_wildcards(HEADPATH + 'reads/{readfile}.fasta').readfile
+file_wildcards_nanopore = glob_wildcards(HEADPATH + 'nanopore/{nanopore_file}.pkl').nanopore_file
+filenames_expected_error_report = expand(HEADPATH + 'graph_output/reads-{readfile}_nanopore-{nanopore_file}_error-report.txt',
+                          readfile=file_wildcards_grnas,
+                          nanopore_file=file_wildcards_nanopore)
+            
 rule all:
     input:
-        expected_outputs
-
-# rule concatenate_reads:
-#     input:
-#         FASTA_SINGLES_DIR
-#     output:
-#         OUT_READS_FILEPATH
-#     shell:
-#         "cat {input}*.fasta > {output}.fasta"
+        FILENAME_COMBINED_ERROR_REPORTS
 
 rule graph_align:
     input:
@@ -34,4 +30,31 @@ rule get_barcodes:
     output:
         HEADPATH + 'graph_output/{readfile}.pkl'
     script:
-        'get_barcodes_from_gfa.py'
+        'scripts/get_barcodes_from_gfa.py'
+
+rule get_grnas:
+    input:
+        filename_fasta = HEADPATH + 'reads/{readfile}.fasta',
+        filename_gfa_pickle = HEADPATH + 'graph_output/{readfile}.pkl'
+    output:
+        filename_grnas = HEADPATH + 'graph_output/{readfile}_grnas.pkl'
+    script:
+        'scripts/get_grnas_from_gfa_and_reads.py'
+
+rule map_to_nanopore:
+    input:
+        filename_grnas = HEADPATH+'graph_output/{readfile}_grnas.pkl',
+        filename_nanopore = HEADPATH+'nanopore/{nanopore_file}.pkl'
+    output:
+        filename_summary = HEADPATH + 'graph_output/reads-{readfile}_nanopore-{nanopore_file}_summary.pkl',
+        filename_error_report = HEADPATH + 'graph_output/reads-{readfile}_nanopore-{nanopore_file}_error-report.txt'
+    script:
+        'scripts/map_isolates_to_nanopore.py'
+
+rule combine_error_reports:
+    input:
+        filenames_error_reports = filenames_expected_error_report
+    output:
+        filename_combined_error_reports = FILENAME_COMBINED_ERROR_REPORTS
+    shell:
+        "cat {input.filenames_error_reports} > {output.filename_combined_error_reports}"
