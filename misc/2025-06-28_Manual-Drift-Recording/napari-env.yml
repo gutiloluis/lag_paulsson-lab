@@ -1,0 +1,9 @@
+name: napari-env
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - napari
+  - pyqt
+prefix: /home/gutil/miniconda3/envs/napari-env
