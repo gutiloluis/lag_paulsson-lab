@@ -15,7 +15,7 @@ POD5_CHUNKSIZE = 1 # Now they are much bigger. From ~500 kb per pod5 file in lLA
 READ_SETSIZE = 200000 #50000
 CHUNK_SIZE = 50
 
-DEPTH_THRESHOLD = 200#1000
+DEPTH_THRESHOLD = 110#200#1000
 # DEPTH_THRESHOLD = 10
 
 # N_SUBSAMPLES = [15, None]
@@ -145,6 +145,7 @@ checkpoint groupbarcodes:
     script:
         "scripts/group_barcodes.py"
 
+'''
 rule madakaconsensus:
     input:
         readgroup = SCRATCH_PATH+"readgroups/subsample={subsample}/{chunk}",
@@ -154,7 +155,8 @@ rule madakaconsensus:
         alignment = directory(SCRATCH_PATH+"alignment/subsample={subsample}/{chunk}"),
         completion_file = SCRATCH_PATH+"consensus/subsample={subsample}/{chunk}/completed.txt"
     #resources: partition="short", time_min=60, mem_mb=500, cpus=1, optflags=""
-    resources: partition="short", time_min=600, mem_mb=8000, cpus=1, optflags=""
+    resources: partition="short", time_min=300, mem_mb=8000, cpus=1, optflags=""
+    # resources: partition="short", time_min=600, mem_mb=8000, cpus=1, optflags=""
     run:
         groups = os.listdir(list({input.readgroup})[0])
         groups = [item.split(".")[0] for item in groups if "group" in item]
@@ -280,5 +282,203 @@ rule aggregate_outputs:
     output:
         final_output = SCRATCH_PATH+"output.tsv"
     resources: partition="short", time_min=620, mem_mb=16000, cpus=1, optflags=""
+    script:
+        "scripts/merge_outputs.py"
+'''
+
+rule sam_consensus:
+    input:
+        readgroup = SCRATCH_PATH+"readgroups/subsample={subsample}/chunk_{chunk}.fastq",
+        groupref = SCRATCH_PATH+"grouprefs/subsample={subsample}/chunk_{chunk}.fasta"
+    output:
+        consensus = SCRATCH_PATH+"consensus/subsample={subsample}/chunk_{chunk}.fasta",
+        alignment = SCRATCH_PATH+"alignment/subsample={subsample}/chunk_{chunk}.sam",
+        completion_file = SCRATCH_PATH+"consensus/subsample={subsample}/chunk_{chunk}_completed.txt"
+    resources: partition="short", time_min=90, mem_mb=8000, cpus=1, optflags=""
+    run:
+        group_refs = {}
+        groups = []
+        with open(input.groupref, "r") as refs_in:
+            for i,line in enumerate(refs_in):
+                ##line = line[:-2]
+                if i%2==0:
+                    group_num = int(line.split("_")[1])
+                else:
+                    group_refs[group_num] = line
+                    groups.append(group_num)
+        group_reads = {}
+        with open(input.readgroup, "r") as reads_in:
+            for i,line in enumerate(reads_in):
+                ##line = line[:-2]
+                if i%2==0:
+                    group_num = int(line.split("_")[0][1:])
+                    read_num = int(line.split("_")[1])
+                    if group_num not in group_reads.keys():
+                        group_reads[group_num] = []
+                else:
+                    group_reads[group_num].append(line)
+
+        with open(output.consensus,"w") as consout:
+            consout.write("")
+        with open(output.alignment,"w") as samout:
+            samout.write("")
+
+        for group in groups:
+            group_ref_str = ">group_" + str(group) + "\n" + group_refs[group] + "\n"
+            group_read_str = "".join(["@" + str(group) + "_" + str(read_num) + "\n" + \
+                            group_reads[group][read_num] + "\n" for read_num in \
+                            range(len(group_reads[group]))])
+            cons_subsample_path = SCRATCH_PATH + "consensus/subsample=" + wildcards.subsample
+            align_subsample_path = SCRATCH_PATH + "alignment/subsample=" + wildcards.subsample
+            temp_folder_path = cons_subsample_path + "/chunk_" + wildcards.chunk +"_temp"
+            temp_ref_path = temp_folder_path + "/chunk_" + wildcards.chunk + "_tempref.fasta"
+            temp_read_path = temp_folder_path + "/chunk_" + wildcards.chunk + "_tempreads.fastq"
+           ## temp_cons_path = cons_subsample_path + "/chunk_" + wildcards.chunk + "_tempcons"
+            temp_cons_path = temp_folder_path + "/chunk_" + wildcards.chunk + "_consensus.fasta"
+            temp_bam_path = temp_folder_path + "/chunk_" + wildcards.chunk + "_tempbam"
+            temp_sam_path =temp_folder_path + "/chunk_" + wildcards.chunk + "_tempsam.sam"
+
+            if os.path.exists(temp_folder_path):
+                shutil.rmtree(temp_folder_path)
+            os.makedirs(temp_folder_path)
+
+            with open(temp_ref_path,"w") as tempreffile:
+                tempreffile.write(group_ref_str)
+            with open(temp_read_path,"w") as tempreadfile:
+                tempreadfile.write(group_read_str)
+            
+           ## shell_str = "medaka smolecule --model r1041_e82_400bps_hac_v4.2.0 " + temp_cons_path + " " + temp_read_path +\
+           ## "; minimap2 -ax map-ont " + temp_ref_path + " " + temp_cons_path + "/consensus.fasta > " + temp_sam_path
+           ## shell(shell_str)
+
+            mini_align = "mini_align -i "+ temp_read_path +" -r " + temp_ref_path + " -m -p " + temp_bam_path + " -t 1"
+            shell(mini_align)
+
+            sam_consensus = "samtools consensus -f fasta -X r10.4_sup " + temp_bam_path + ".bam -o " + temp_cons_path
+            shell(sam_consensus)
+
+           ## bam_to_sam = "samtools view -h "+temp_bam_path+ ".bam > " + temp_sam_path
+           ## shell(bam_to_sam)
+            write_sam = "minimap2 -ax map-ont " + temp_ref_path + " " + temp_cons_path + " > " + temp_sam_path
+            shell(write_sam)
+
+            with open(temp_cons_path,"r") as consin:
+                with open(output.consensus,"a") as consout:
+                    consout.write(consin.read())
+            with open(temp_sam_path,"r") as samin:
+                with open(output.alignment,"a") as samout:
+                    samout.write(samin.read())
+            for f in glob.glob(temp_folder_path + "/chunk_"+wildcards.chunk+"_*"):
+                if os.path.isfile(f):
+                    os.remove(f)
+          ##  os.remove(temp_ref_path)
+          ##  os.remove(temp_read_path)
+          ##  os.remove(temp_sam_path)
+        if os.path.exists(temp_folder_path):
+            shutil.rmtree(temp_folder_path)
+        with open(output.completion_file,"w") as output_file:
+            output_file.write("Done.")
+
+
+def aggregate_consensus_completion_files(wildcards):
+    readgroups_output = checkpoints.groupbarcodes.get(**wildcards).output["readgroups"]
+    collected_groups = glob_wildcards(os.path.join(readgroups_output, "{readgroup}.fastq")).readgroup # 'subsample=None/chunk_9918'
+    expanded_completion_files = expand(SCRATCH_PATH+"consensus/{readgroup}_completed.txt",readgroup=collected_groups)
+    return expanded_completion_files
+
+def aggregate_consensus(wildcards):
+    readgroups_output = checkpoints.groupbarcodes.get(**wildcards).output["readgroups"]
+    collected_groups = glob_wildcards(os.path.join(readgroups_output, "{readgroup}.fastq")).readgroup
+    expanded_completion_files = expand(SCRATCH_PATH+"consensus/{readgroup}_completed.txt",readgroup=collected_groups)
+    return expand(SCRATCH_PATH+"consensus/{readgroup}.fasta",readgroup=collected_groups)
+
+def aggregate_grouprefs(wildcards):
+    readgroups_output = checkpoints.groupbarcodes.get(**wildcards).output["readgroups"]
+    collected_groups = glob_wildcards(os.path.join(readgroups_output, "{readgroup}.fastq")).readgroup
+    expanded_files = directory(expand(SCRATCH_PATH+"grouprefs/{readgroup}.fasta",readgroup=collected_groups))
+    return expand(SCRATCH_PATH+"grouprefs/{readgroup}.fasta",readgroup=collected_groups)
+
+def aggregate_sams(wildcards):
+    readgroups_output = checkpoints.groupbarcodes.get(**wildcards).output["readgroups"]
+    collected_groups = glob_wildcards(os.path.join(readgroups_output, "{readgroup}.fastq")).readgroup
+    return expand(SCRATCH_PATH+"alignment/{readgroup}.sam",readgroup=collected_groups)
+
+rule check_consensus:
+    input:
+        aggcons_comp = aggregate_consensus_completion_files
+    output:
+        checked_cons_file = SCRATCH_PATH+"consensus_subsample={subsample}_completed.txt"
+    resources: partition="short", time_min=120, mem_mb=16000, cpus=1, optflags=""
+    run:
+        with open(output.checked_cons_file,"w") as output_file:
+            output_file.write("Done.")
+
+rule aggconsensus:
+    input:
+        aggcons = aggregate_consensus,
+        checked_cons_file = SCRATCH_PATH+"consensus_subsample={subsample}_completed.txt"
+    output:
+        consfile = SCRATCH_PATH+"consensus_subsample={subsample}.fasta"
+    resources: partition="short", time_min=620, mem_mb=16000, cpus=1, optflags=""
+    run:
+        all_consensus_files = [item for item in input.aggcons if ("subsample=" + str(wildcards.subsample))==(item.split("/")[-2])]
+       ## for chunk_folder in chunk_folders:
+       ##     group_folders = os.listdir(chunk_folder)
+       ##     group_files = [chunk_folder + "/" + item + "/consensus.fasta" for item in group_folders if "group" in item]
+       ##     all_consensus_files += group_files
+        
+        with open(output.consfile,"w") as outfile:
+            for filename in all_consensus_files:
+                with open(filename,"r") as infile:
+                    outfile.write(infile.read())
+
+
+rule agggrouprefs:
+    input:
+        aggregate_grouprefs
+    output:
+        reffile = SCRATCH_PATH+"references_subsample={subsample}.fasta"
+    resources: partition="short", time_min=620, mem_mb=16000, cpus=1, optflags=""
+    run:
+        print(input)
+        all_ref_files = [item for item in input if ("subsample=" + str(wildcards.subsample))==(item.split("/")[-2])]
+       ## for chunk_folder in chunk_folders:
+       ##     group_files = os.listdir(chunk_folder)
+       ##     group_files = [chunk_folder + "/" + item for item in group_files if "group" in item and item.split(".")[-1] == "fasta"]
+       ##     all_ref_files += group_files
+
+        with open(output.reffile,"w") as outfile:
+            for filename in all_ref_files:
+                with open(filename,"r") as infile:
+                    outfile.write(infile.read())
+
+
+rule aggregatecigars:
+    input:
+        aggsams = aggregate_sams
+    output:
+        cigartsv = SCRATCH_PATH+"cigars_subsample={subsample}.tsv"
+    resources: partition="short", time_min=620, mem_mb=16000, cpus=1, optflags=""
+    script:
+        "scripts/aggregate_cigars.py"
+
+rule outputtsv:
+    input:
+        consfile = SCRATCH_PATH+"consensus_subsample={subsample}.fasta",
+        reffile = SCRATCH_PATH+"references_subsample={subsample}.fasta",
+        cigarfile = SCRATCH_PATH+"cigars_subsample={subsample}.tsv",
+        inv_barcode_codebook = SCRATCH_PATH+"graph_output/inv_codebook.tsv"
+    output:
+        outputfile = SCRATCH_PATH+"output_subsample={subsample}.tsv"
+    resources: partition="short", time_min=180, mem_mb=24000, cpus=1, optflags=""
+    script:
+        "scripts/gather_data.py"
+
+rule aggregate_outputs:
+    input:
+        tsv_output = expand(SCRATCH_PATH+"output_subsample={subsample}.tsv",subsample=N_SUBSAMPLES)
+    output:
+        final_output = SCRATCH_PATH+"output.tsv"
+    resources: partition="short", time_min=180, mem_mb=24000, cpus=1, optflags=""
     script:
         "scripts/merge_outputs.py"

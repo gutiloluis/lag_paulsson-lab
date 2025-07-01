@@ -4,8 +4,11 @@ CHUNK_SIZE = 50
 N_SUBSAMPLES = [None]
 
 readfiles = glob_wildcards(SCRATCH_PATH+"reads/{readfile}.fastq").readfile
+print(readfiles)
 tsv_list = expand(SCRATCH_PATH+"graph_output/{readfile}.tsv", readfile=readfiles)
+print(tsv_list)
 fastq_list = expand(SCRATCH_PATH+"reads/{readfile}.fastq", readfile=readfiles)
+print(fastq_list)
 
 
 rule all:
@@ -42,7 +45,8 @@ rule group_barcodes:
         inv_barcode_codebook = SCRATCH_PATH+"graph_output/inv_codebook.tsv"
     params:
         threshold=DEPTH_THRESHOLD
-    resources: partition="short", time_min=30, mem_mb=16000, cpus=1, optflags=""
+    # resources: partition="short", time_min=30, mem_mb=16000, cpus=1, optflags=""
+    resources: partition="short", time_min=30, mem_mb=500, cpus=1, optflags=""
     script:
         "scripts/set_barcode_threshold.py"
 
@@ -58,6 +62,7 @@ checkpoint group_read_refs_per_barcode:
     params:
         chunksize=CHUNK_SIZE,
         subsample_list=N_SUBSAMPLES
-    resources: partition="short", time_min=120, mem_mb=32000, cpus=2, optflags=""
+    # resources: partition="short", time_min=120, mem_mb=32000, cpus=2, optflags=""
+    resources: partition="short", time_min=30, mem_mb=500, cpus=2, optflags=""
     script:
         "scripts/group_barcodes.py"

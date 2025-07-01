@@ -19,7 +19,7 @@ def get_barcode_codebook(barcode_dict, final_barcode_idx):
 
 ### Get Barcode Histogram ###
 inpathlist = snakemake.input["tsv"]
-
+print(inpathlist)
 barcode_dict = {}
 for filepath in inpathlist:
     with open(filepath, "r") as infile:

@@ -1,0 +1,35 @@
+# --- Core Paths ---
+# Base directory for scratch space and most outputs
+scratch_path: "/n/scratch/groups/hms/sysbio/paulsson/lag36/2024-11-22_lLAG10_Nanopore/"
+# Input reference graph file
+gfa_path: "/n/scratch/groups/hms/sysbio/paulsson/lag36/2024-11-22_lLAG10_Nanopore/ref_lLAG8.gfa"
+# Input POD5 directory (for commented-out basecalling)
+pod5_input_dir: "/n/scratch/groups/hms/sysbio/paulsson/lag36/2024-11-22_lLAG10_Nanopore/pod5"
+
+# --- Tool Paths ---
+# Path to the dorado executable directory
+dorado_bin_path: "/home/lag36/dorado-0.5.2-linux-x64/bin"
+
+# --- Basecalling Parameters (relevant if uncommenting basecalling rules) ---
+basecalling:
+  flowcell: "FLO-PRO114M" # "FLO-MIN114"
+  kit: "SQK-LSK114"
+  # Chunk size for splitting POD5 files (if using grouppod5)
+  pod5_chunksize: 1 # 500
+
+# --- Read Processing Parameters ---
+read_processing:
+  # Minimum and maximum read length for filtering/grouping
+  min_readlength: 900
+  max_readlength: 1200
+  # Target number of reads per regrouped fastq file
+  read_setsize: 200000 #1000000 # 50000
+
+# --- Barcode/Grouping Parameters ---
+barcoding:
+  # Minimum depth threshold for barcode identification
+  depth_threshold: 70
+  # Chunk size for grouping reads by barcode
+  chunk_size: 200 # 1000
+  # List of subsampling levels (use null for Python's None)
+  subsamples: [null] # Example: [null, 100, 50]
