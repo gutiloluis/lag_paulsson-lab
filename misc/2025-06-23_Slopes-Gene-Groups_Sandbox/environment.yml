@@ -1,0 +1,22 @@
+name: minimal_crispri
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bokeh
+  - fastparquet
+  - h5py
+  - holoviews
+  - ipympl
+  - ipywidgets
+  - jupyterlab
+  - matplotlib
+  - numpy
+  - pandas
+  - plotly
+  - pyarrow
+  - pytables
+  - python=3.11
+  - seaborn
+prefix: /home/gutil/miniconda3/envs/minimal_crispri
