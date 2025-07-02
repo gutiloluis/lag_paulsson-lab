@@ -1,9 +1,9 @@
 name: napari-env
 channels:
   - conda-forge
-  - bioconda
   - defaults
 dependencies:
   - napari
   - pyqt
-prefix: /home/gutil/miniconda3/envs/napari-env
+  - nd2reader
+prefix: /home/lag36/miniconda3/envs/napari-env
