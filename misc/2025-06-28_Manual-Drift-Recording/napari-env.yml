@@ -6,4 +6,6 @@ dependencies:
   - napari
   - pyqt
   - nd2reader
+  - h5py
+  - matplotlib
 prefix: /home/lag36/miniconda3/envs/napari-env
