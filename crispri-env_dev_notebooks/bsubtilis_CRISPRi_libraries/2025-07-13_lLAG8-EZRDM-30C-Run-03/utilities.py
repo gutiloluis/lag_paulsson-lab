@@ -3,6 +3,7 @@ import glob
 import re
 import os
 import numpy as np
+import skimage as sk
 
 
 def parse_and_save_futures_results(futures_dict, function_name, headpath):
@@ -121,6 +122,15 @@ def group_filenames_per_fov(headpath, pattern="*BF_*"):
         sorted_filenames_per_fov[fov_number] = sorted_filenames
     return sorted_filenames_per_fov
 
+def generate_output_filenames_dict_per_fov(filenames_per_fov_in, headpath_out):
+    filenames_per_fov_out = {fov: [] for fov in filenames_per_fov_in.keys()}
+    for fov, filenames in filenames_per_fov_in.items():
+        for filename in filenames:
+            filename_out = os.path.join(headpath_out, os.path.basename(filename))
+            filenames_per_fov_out[fov].append(filename_out)
+
+    return filenames_per_fov_out
+
 def group_filenames_per_fov_channel_all_timepoints(headpath, pattern="*fov*", n_timepoints= 10, channels = ['BF', 'RFP', 'Cy5', 'Cy7']):
     '''
     Groups filenames per FOV and channel for all timepoints.
@@ -179,3 +189,14 @@ def add_fake_channel_to_all_metadata_files(metadata_filenames, config_template='
         df_metadata = add_fake_channel_to_metadata(df_metadata, config_template, config_new)
         df_metadata.to_hdf(metadata_filename, key='data', mode='w')
     return 0
+
+
+def correct_drift_single_image(image, cumulative_shift_coords_t):
+    shift_y, shift_x = cumulative_shift_coords_t
+    transform = sk.transform.AffineTransform(translation=(-shift_x, -shift_y))
+    image_corrected = sk.transform.warp(image,
+                                        transform,
+                                        mode='constant',
+                                        preserve_range=True,
+                                        cval=np.median(image)).astype(image.dtype)
+    return image_corrected
