@@ -40,7 +40,7 @@ replaced by `'locus_tag' in feature.qualifiers`, so that tRNA and rRNA features 
 scanned as well as coding sequences. The original lines are retained as comments.
 Apart from that change and the provenance header, the file is byte-for-byte upstream.
 
-Because upstream carries no licence, this copy is retained for reproducibility of
+This copy is retained for reproducibility of
 the library design and is not redistributed under any claim of ownership.
 
 ### Acknowledgements
