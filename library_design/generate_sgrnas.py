@@ -1,4 +1,19 @@
 #!/usr/bin/env python
+# ---------------------------------------------------------------------------
+# THIRD-PARTY FILE - not written by this repository's author.
+#
+# Source : https://github.com/jordivangestel/sgRNAs-for-mismatch-CRISPRi
+# Authors: Jordi van Gestel, John S. Hawkins, Horia Todor, Carol A. Gross
+# Paper  : van Gestel et al., STAR Protocols 2(2):100521 (2021)
+#          doi:10.1016/j.xpro.2021.100521
+# Retrieved 2024-03-18. Upstream carries no licence file.
+#
+# Local modification, the only change from upstream: in
+# construct_perfect_sgrnas(), `feature.type == "CDS"` was replaced by
+# `'locus_tag' in feature.qualifiers` at two places, so tRNA and rRNA
+# features are scanned too. The original lines are kept as comments.
+# See README.md.
+# ---------------------------------------------------------------------------
 # python generate_sgRNAs.py -h
 # python generate_sgrnas.py --genbank GCF_000009045.1_ASM904v1_genomic.gbff --locus_tag BSU_00010
 # python generate_sgrnas.py --genbank GCF_000009045.1_ASM904v1_genomic.gbff --locus_tag all
